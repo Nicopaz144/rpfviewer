@@ -1,0 +1,46 @@
+name: Build IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Descomprimir el codigo fuente
+        run: unzip -q RPFViewer-source.zip -d app
+
+      - name: Instalar XcodeGen
+        run: brew install xcodegen
+
+      - name: Generar el proyecto de Xcode
+        working-directory: app
+        run: xcodegen generate
+
+      - name: Compilar (sin firmar)
+        working-directory: app
+        run: |
+          xcodebuild \
+            -project RPFViewer.xcodeproj \
+            -scheme RPFViewer \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Empaquetar el IPA
+        working-directory: app
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/RPFViewer.app Payload/
+          zip -qr RPFViewer.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RPFViewer-ipa
+          path: app/RPFViewer.ipa
